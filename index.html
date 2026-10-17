@@ -67,7 +67,7 @@ const plural=n=>n==1?"":"s";
 
 let U=null;try{U=JSON.parse(localStorage.getItem("sp-user"))}catch(e){}
 const setU=u=>{U=u;try{u?localStorage.setItem("sp-user",JSON.stringify(u)):localStorage.removeItem("sp-user")}catch(e){}};
-const S={tab:"find",q:{from:"Nairobi",to:"Kisumu",date:""},open:null,msg:null,err:false,trips:[],mine:null,mode:"login",loading:true};
+const S={tab:"find",q:{from:"Nairobi",to:"Anywhere",date:"",area:""},open:null,msg:null,err:false,trips:[],mine:null,mode:"login",loading:true,loc:null,ride:null,nearby:0,online:false,dreqs:[],active:null,car:"",landmark:""};
 
 async function api(action,d={}){
  if(API_URL.startsWith("PASTE"))throw new Error("Set API_URL in index.html to your Apps Script web app URL.");
@@ -82,19 +82,23 @@ async function run(fn){
   S.err=true}
  S.loading=false;render()}
 
+const AREAS=["CBD","Westlands","Eastleigh","South B","Rongai","Kasarani","Roysambu","Karen","Embakasi"];
+const COORD={Nairobi:[-1.286,36.817],Naivasha:[-0.717,36.431],Nakuru:[-0.303,36.08],Kericho:[-0.368,35.286],Kisumu:[-0.091,34.768],Eldoret:[0.514,35.27],Machakos:[-1.517,37.263],Mombasa:[-4.043,39.668],Thika:[-1.033,37.069],Nyeri:[-0.42,36.951]};
 function viewFind(){
- const {from,to,date}=S.q,today=iso(0);
- const res=S.trips.filter(t=>{const i=t.stops.indexOf(from),j=t.stops.indexOf(to);return i>-1&&j>i&&t.seats>0&&t.date>=today&&(!date||t.date===date)}).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
- const rows=res.map(t=>{const i=t.stops.indexOf(from),j=t.stops.indexOf(to),mine=U&&t.driverId===U.id;
+ const {from,to,date,area}=S.q,today=iso(0),any=to==="Anywhere";
+ const res=S.trips.filter(t=>{const i=t.stops.indexOf(from),j=any?t.stops.length-1:t.stops.indexOf(to);return i>-1&&j>i&&t.seats>0&&t.date>=today&&(!date||t.date===date)&&(!area||(t.pickup||"").toLowerCase().includes(area.toLowerCase()))}).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const rows=res.map(t=>{const i=t.stops.indexOf(from),j=any?t.stops.length-1:t.stops.indexOf(to),mine=U&&t.driverId===U.id;
   const seg=t.stops.map((s,k)=>`<span class="${k>=i&&k<=j?"on":""}">${esc(s)}</span>`).join("");
-  const form=S.open===t.id?`<form class="form" data-form="req" data-tid="${t.id}"><label>Seats<select name="seats">${opt([1,2,3,4].filter(n=>n<=t.seats))}</select></label>
+  const form=S.open===t.id?`<form class="form" data-form="req" data-tid="${t.id}"><label>Drop-off<select name="to">${opt(t.stops.slice(i+1),any?t.to:to)}</select></label><label>Seats<select name="seats">${opt([1,2,3,4].filter(n=>n<=t.seats))}</select></label>
    <div style="display:flex;gap:8px"><button class="btn">Send request</button><button type="button" class="btn alt" data-act="close">Cancel</button></div></form>`:"";
-  return `<article class="trip"><div class="top"><span class="when">${fmtD(t.date)} at ${t.time}</span><span class="price">${kes(fare(t,i,j))} <small>per seat</small></span></div>
-  <div class="stops">${seg}</div><div class="meta"><span>${esc(t.driver)} driving a ${esc(t.car)}, ${t.seats} seat${plural(t.seats)} left</span>
+  return `<article class="trip"><div class="top"><span class="when">${fmtD(t.date)} at ${t.time}</span><span class="price">${kes(fare(t,i,j))} <small>per seat${any?" to "+esc(t.to):""}</small></span></div>
+  <div class="stops">${seg}</div><div class="meta"><span>Pickup: <b>${esc(t.pickup||t.from)}</b>. ${esc(t.driver)}, ${esc(t.car)}, ${t.seats} seat${plural(t.seats)} left</span>
   ${mine?`<span>Your trip</span>`:`<button class="btn" data-act="open" data-id="${t.id}">${U?"Request a seat":"Log in to request"}</button>`}</div>${form}</article>`}).join("");
- return `<form data-form="search"><div class="go"><label>From<select name="from">${opt(CITIES,from)}</select></label><div class="road"></div><label>To<select name="to">${opt(CITIES,to)}</select></label></div>
- <div class="srch"><label>Date (optional)<input type="date" name="date" min="${today}" value="${date}"></label><button class="btn">Find rides</button></div></form>
- ${S.loading?`<div class="empty">Loading rides…</div>`:from===to?`<div class="empty">Pick two different towns to see rides.</div>`:rows||`<div class="empty">No rides from ${from} to ${to} yet. Drivers post trips under “Offer a ride”, so check back or try another date.</div>`}`}
+ return `<button class="btn alt" data-act="loc" style="margin-bottom:14px">Use my location</button>
+ <form data-form="search"><div class="go"><label>From<select name="from">${opt(CITIES,from)}</select></label><div class="road"></div><label>To<select name="to">${opt(["Anywhere",...CITIES],to)}</select></label></div>
+ <div class="form" style="margin:0 0 20px;padding:0;border:0">${from==="Nairobi"?`<label>Pickup area<select name="area"><option value="">Any area</option>${opt(AREAS,area)}</select></label>`:""}
+ <label>Date (optional)<input type="date" name="date" min="${today}" value="${date}"></label><button class="btn">Show rides</button></div></form>
+ ${S.loading?`<div class="empty">Loading rides…</div>`:from===to?`<div class="empty">Pick two different towns to see rides.</div>`:rows?`<p class="hint">${res.length} ride${plural(res.length)} leaving ${esc(from)}${area?", "+esc(area):""}${any?"":" for "+esc(to)}</p>${rows}`:`<div class="empty">No rides from ${esc(from)}${any?"":" to "+esc(to)} yet. Drivers post trips under “Offer a ride”, so check back soon.</div>`}`}
 
 const gate=m=>`<div class="empty">${m}<p><button class="btn" data-act="tab" data-id="account">Log in or sign up</button></p></div>`;
 function viewOffer(){
@@ -103,6 +107,7 @@ function viewOffer(){
  return `<form class="trip" data-form="offer"><div class="form" style="margin:0;padding:0;border:0">
  <label>Car (make and model)<input name="car" required></label>
  <label>Leaving from<select name="from">${opt(CITIES,"Nairobi")}</select></label><label>Going to<select name="to">${opt(CITIES,"Kisumu")}</select></label>
+ <label>Pickup point<input name="pickup" list="pk" placeholder="e.g. Nairobi CBD, Kencom" required></label><datalist id="pk">${AREAS.map(a=>`<option value="${a==="CBD"?"Nairobi CBD":a}">`).join("")}</datalist>
  <label>Date<input type="date" name="date" min="${iso(0)}" value="${iso(1)}" required></label><label>Departure time<input type="time" name="time" value="07:00" required></label>
  <label>Empty seats<select name="seats">${opt([1,2,3,4,5,6],3)}</select></label>
  <label>Price per seat (KES)<input type="number" name="price" min="100" step="50" required></label></div>
@@ -130,11 +135,35 @@ function viewAccount(){
  ${su?`<label>I want to<select name="role"><option value="driver">Share rides in my car</option><option value="traveller">Find rides</option></select></label>`:""}</div>
  <p></p><button class="btn">${su?"Create account":"Log in"}</button></form>`}
 
+const pos=()=>new Promise((ok,no)=>{if(!navigator.geolocation)return no(new Error("Location isn’t available on this device."));navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lng:p.coords.longitude}),()=>no(new Error("Couldn’t get your location. Allow location access and try again.")),{timeout:10000,enableHighAccuracy:true})});
+const maps=(la,lo)=>`<a href="https://www.google.com/maps?q=${la},${lo}" target="_blank" rel="noopener">Open in Maps</a>`;
+async function tick(){
+ if(!U)return;
+ if(U.role==="driver"){if(!S.online)return;const p=await pos(),r=await api("ping",{lat:p.lat,lng:p.lng,car:S.car});S.dreqs=r.requests;S.active=r.active}
+ else{const was=S.ride,r=await api("rideStatus");S.ride=r.ride;S.nearby=r.nearby;if(was&&!r.ride)S.msg="Your ride has ended."}}
+function viewRide(){
+ if(!U)return gate("Log in to request a ride, or to drive.");
+ if(U.role==="driver"){
+  if(S.active){const a=S.active;return `<div class="trip"><div class="when">Pick up ${esc(a.name)}</div><p class="hint">${a.dist} km from you, going to ${esc(a.to)}. ${esc(a.pickup||"")}</p><p>Call ${esc(a.phone)}. ${maps(a.lat,a.lng)}</p>
+   <button class="btn" data-act="rdone" data-id="${a.id}">Complete trip</button> <button class="btn bad" data-act="rcancel" data-id="${a.id}">Cancel</button></div>`}
+  if(!S.online)return `<div class="trip"><p class="hint">Go online to see travellers requesting a ride within 15 km of you. Keep this page open while you’re online.</p><label>Your car (make and model)<input id="dcar" value="${esc(S.car)}"></label><p></p><button class="btn" data-act="online">Go online</button></div>`;
+  return `<div class="trip top"><span class="when">You’re online</span><button class="btn alt" data-act="offline">Go offline</button></div>
+  ${S.dreqs.length?S.dreqs.map(r=>`<div class="trip"><div class="top"><span class="when">${r.dist} km away</span><span>To ${esc(r.to)}, ${r.seats} seat${plural(r.seats)}</span></div>
+   <div class="meta"><span>${esc(r.pickup||"No landmark given")}. ${maps(r.lat,r.lng)}</span><button class="btn" data-act="racc" data-id="${r.id}">Accept</button></div></div>`).join(""):`<div class="empty">No requests within 15 km yet. New ones appear here automatically.</div>`}`}
+ const r=S.ride;
+ if(r)return `<div class="trip">${r.status==="accepted"?`<div class="when">${esc(r.driver)} is on the way</div><p class="hint">${esc(r.car)}${r.dist!=null?`, about ${r.dist} km from you`:""}. Going to ${esc(r.to)}.</p><p>Call ${esc(r.phone)}</p>`:`<div class="when">Looking for a driver…</div><p class="hint">${S.nearby} driver${plural(S.nearby)} online within 15 km of your pickup. Keep this page open.</p>`}
+  <button class="btn bad" data-act="rcancel" data-id="${r.id}">${r.status==="accepted"?"Cancel ride":"Cancel request"}</button>${r.status==="accepted"?` <button class="btn" data-act="rdone" data-id="${r.id}">I’ve arrived</button>`:""}</div>`;
+ return `<form class="trip" data-form="ride"><div class="form" style="margin:0;padding:0;border:0">
+  <div><button type="button" class="btn alt" data-act="getloc">${S.loc?"Update my location":"Use my current location"}</button><p class="hint">${S.loc?"Pickup location set.":"We use your location to find drivers near you."}</p></div>
+  <label>Pickup landmark (optional)<input name="landmark" value="${esc(S.landmark)}" placeholder="e.g. Kencom, Afya Centre"></label>
+  <label>Going to<select name="to">${opt(CITIES,S.rto||"Kisumu")}</select></label>
+  <label>Seats<select name="seats">${opt([1,2,3,4],S.rseats||1)}</select></label></div><p></p><button class="btn">Request ride</button></form>`}
+
 function render(){
- const tabs=[["find","Find a ride"],["offer","Offer a ride"],["mine","My activity"],["account",U?U.name:"Log in"]];
+ const tabs=[["find","Find a ride"],["ride","Ride now"],["offer","Offer a ride"],["mine","My activity"],["account",U?U.name:"Log in"]];
  app.innerHTML=`<div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${S.tab===k}" data-act="tab" data-id="${k}">${esc(l)}</button>`).join("")}</div>
  ${S.msg?`<div class="msg${S.err?" err":""}" role="status">${esc(S.msg)}</div>`:""}
- ${{find:viewFind,offer:viewOffer,mine:viewMine,account:viewAccount}[S.tab]()}`;
+ ${{find:viewFind,ride:viewRide,offer:viewOffer,mine:viewMine,account:viewAccount}[S.tab]()}`;
  S.msg=null;S.err=false;if(S.tab==="offer")hint()}
 function hint(){const f=document.querySelector('[data-form="offer"]');if(!f)return;const a=f.from.value,b=f.to.value,h=document.getElementById("hint");
  if(a===b){h.textContent="Choose two different towns.";return}
@@ -142,7 +171,15 @@ function hint(){const f=document.querySelector('[data-form="offer"]');if(!f)retu
 
 document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
  run(async()=>{
-  if(a==="tab"){S.tab=id;S.open=null;if(id==="mine")await loadMine();if(id==="find")await loadTrips()}
+  if(a==="tab"){S.tab=id;S.open=null;if(id==="mine")await loadMine();if(id==="ride")await tick();if(id==="find")await loadTrips()}
+  else if(a==="loc"){await new Promise((ok,no)=>{if(!navigator.geolocation)return no(new Error("Location isn’t available on this device. Pick your town below."));
+   navigator.geolocation.getCurrentPosition(p=>{let best="Nairobi",bd=1e9;for(const c in COORD){const d=(COORD[c][0]-p.coords.latitude)**2+(COORD[c][1]-p.coords.longitude)**2;if(d<bd){bd=d;best=c}}
+    S.q={from:best,to:"Anywhere",date:"",area:""};S.msg=`Showing rides leaving ${best}, the town nearest you.`;ok()},()=>no(new Error("Couldn’t get your location. Pick your town below.")),{timeout:10000})})}
+  else if(a==="getloc"){const f=document.querySelector('[data-form="ride"]');if(f){S.rto=f.to.value;S.rseats=f.seats.value;S.landmark=f.landmark.value}S.loc=await pos();S.msg="Pickup location set."}
+  else if(a==="online"){const c=document.getElementById("dcar").value.trim();if(!c)throw new Error("Enter your car’s make and model.");S.car=c;S.online=true;try{await tick()}catch(e){S.online=false;throw e}}
+  else if(a==="offline"){S.online=false;S.dreqs=[];await api("offline")}
+  else if(a==="racc"){await api("accept",{rid:id});await tick();S.msg="Accepted. Call the traveller and head to the pickup."}
+  else if(a==="rdone"||a==="rcancel"){await api("finish",{rid:id,done:a==="rdone"});S.ride=null;S.active=null;S.msg=a==="rdone"?"Trip completed.":"Cancelled.";if(U.role==="driver"&&S.online)await tick()}
   else if(a==="mode")S.mode=id;
   else if(a==="close")S.open=null;
   else if(a==="open"){if(U)S.open=id;else{S.tab="account";S.mode="signup";S.msg="Create an account or log in to request a seat."}}
@@ -152,11 +189,13 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(
 document.addEventListener("change",e=>{if(e.target.closest('[data-form="offer"]'))hint()});
 document.addEventListener("submit",e=>{e.preventDefault();const f=e.target,k=f.dataset.form,v=Object.fromEntries(new FormData(f));
  run(async()=>{
-  if(k==="search"){S.q={from:v.from,to:v.to,date:v.date};S.open=null}
+  if(k==="search"){S.q={from:v.from,to:v.to,date:v.date,area:v.area||""};S.open=null}
   else if(k==="signup"||k==="login"){const u=await api(k,v);setU(u);S.tab=u.role==="driver"&&k==="signup"?"offer":"find";S.msg=k==="signup"?`Account created. Welcome, ${u.name}.`:`Welcome back, ${u.name}.`;await loadTrips()}
-  else if(k==="req"){await api("request",{tid:f.dataset.tid,from:S.q.from,to:S.q.to,seats:+v.seats});S.open=null;S.msg="Request sent. The driver’s reply will appear under My activity."}
+  else if(k==="ride"){if(!S.loc)throw new Error("Tap “Use my current location” first.");S.landmark=v.landmark;await api("ride",{lat:S.loc.lat,lng:S.loc.lng,pickup:v.landmark,to:v.to,seats:+v.seats});await tick();S.msg="Request sent. Nearby drivers can see it now."}
+  else if(k==="req"){await api("request",{tid:f.dataset.tid,from:S.q.from,to:v.to,seats:+v.seats});S.open=null;S.msg="Request sent. The driver’s reply will appear under My activity."}
   else if(k==="offer"){if(v.from===v.to)throw new Error("Choose two different towns for your trip.");
    await api("offer",{...v,...route(v.from,v.to)});S.tab="mine";S.msg="Trip posted. Travellers on your route can now request a seat.";await loadMine();await loadTrips()}
  })});
+setInterval(()=>{if(S.tab==="ride"&&U&&(S.online||S.ride))run(tick)},8000);
 const app=document.getElementById("app");render();run(loadTrips);
 </script></body></html>
