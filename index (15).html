@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Safiri Pamoja: share the ride, share the fuel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F7F4;--sf:#fff;--ink:#1B2328;--mute:#5C6A71;--line:#D9DED8;--br:#1F6B4A;--bri:#fff;--sun:#F2B705;--bad:#B3342A;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181B;--sf:#1B2429;--ink:#EEF1EE;--mute:#9AA9B0;--line:#2D3A40;--br:#4FB383;--bri:#0C1A13;--bad:#F08A7F;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181B;--sf:#1B2429;--ink:#EEF1EE;--mute:#9AA9B0;--line:#2D3A40;--br:#4FB383;--bri:#0C1A13;--bad:#F08A7F;color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:clamp(2rem,6vw,3.2rem);line-height:1.05;margin:8px 0 6px;font-weight:800;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 20px;max-width:52ch}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font:600 1rem inherit;color:var(--mute);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--sun)}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--mute);font-weight:600}
+input,select{font:400 1rem inherit;color:var(--ink);background:var(--sf);border:1px solid var(--line);border-radius:6px;padding:10px;min-width:0}
+.go{display:grid;grid-template-columns:1fr 60px 1fr;gap:12px;align-items:end;margin-bottom:12px}
+.road{height:3px;margin-bottom:22px;background:repeating-linear-gradient(90deg,var(--sun) 0 12px,transparent 12px 20px)}
+.srch{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;margin-bottom:22px}
+.btn{background:var(--br);color:var(--bri);border:0;border-radius:6px;padding:11px 18px;font:600 1rem inherit;cursor:pointer}
+.btn.alt{background:none;color:var(--ink);border:1px solid var(--line)}
+.btn.bad{background:none;color:var(--bad);border:1px solid var(--bad)}
+.trip{background:var(--sf);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.when{font-weight:800;font-size:1.15rem}
+.price{font-weight:800;font-size:1.3rem}.price small{font-weight:400;color:var(--mute);font-size:.85rem}
+.stops{display:flex;flex-wrap:wrap;margin:8px 0;color:var(--mute)}
+.stops span+span::before{content:"–";margin:0 8px;color:var(--line)}
+.stops .on{color:var(--ink);font-weight:600;border-bottom:3px solid var(--sun)}
+.meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;color:var(--mute);font-size:.95rem}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);align-items:end}
+.msg{background:var(--sf);border-left:5px solid var(--br);padding:12px 14px;margin-bottom:16px;border-radius:0 6px 6px 0}
+.err{border-color:var(--bad)}
+.empty{padding:28px 16px;border:1px dashed var(--line);border-radius:10px;color:var(--mute)}
+h2{font-size:1.2rem;margin:26px 0 10px}
+.req{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.tag{font-weight:600;font-size:.85rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line)}
+.tag.accepted{border-color:var(--br);color:var(--br)}.tag.declined{border-color:var(--bad);color:var(--bad)}
+.hint{color:var(--mute);font-size:.9rem;min-height:1.4em}
+.fine{margin-top:32px;color:var(--mute);font-size:.85rem;max-width:62ch}
+@media(max-width:600px){.go{grid-template-columns:1fr}.road{display:none}.srch{grid-template-columns:1fr}}
+.tabs{flex-wrap:wrap}</style></head>
+<body><main>
+<h1>Safiri Pamoja</h1>
+<p class="sub">Driving upcountry with empty seats? Share the fuel bill with someone going your way. Travelling without a car? Find a driver on your route.</p>
+<div id="app"></div>
+<p class="fine">Fares are cost sharing, not a taxi service. Before carrying paying passengers, check NTSA licensing and your insurer’s rules. Contact details are shown only after a driver accepts a request.</p>
+</main>
+<script>
+const API_URL="PASTE_YOUR_WEB_APP_URL_HERE";
+const CORR=[{n:["Nairobi","Naivasha","Nakuru","Kericho","Kisumu"],k:[0,90,156,266,350]},{n:["Nairobi","Naivasha","Nakuru","Eldoret"],k:[0,90,156,310]},{n:["Nairobi","Machakos","Mombasa"],k:[0,63,485]},{n:["Nairobi","Thika","Nyeri"],k:[0,42,150]}];
+const CITIES=[...new Set(CORR.flatMap(c=>c.n))].sort();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function route(a,b){for(const c of CORR){const i=c.n.indexOf(a),j=c.n.indexOf(b);if(i>-1&&j>-1){const s=i<j?c.n.slice(i,j+1):c.n.slice(j,i+1).reverse();return{stops:s,kms:s.map(x=>Math.abs(c.k[c.n.indexOf(x)]-c.k[i]))}}}return{stops:[a,b],kms:[0,null]}}
+const suggest=(a,b)=>{const k=route(a,b).kms,T=k[k.length-1];return T==null?null:Math.round(T*4.5/50)*50};
+const fare=(t,i,j)=>{const T=t.kms[t.kms.length-1];if(T==null)return t.price;return Math.max(100,Math.round(t.price*(t.kms[j]-t.kms[i])/T/50)*50)};
+const iso=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const fmtD=d=>new Date(d+"T00:00").toLocaleDateString("en-KE",{weekday:"short",day:"numeric",month:"short"});
+const kes=n=>"KES "+n.toLocaleString("en-KE");
+const opt=(l,s)=>l.map(c=>`<option${c==s?" selected":""}>${c}</option>`).join("");
+const plural=n=>n==1?"":"s";
+
+let U=null;try{U=JSON.parse(localStorage.getItem("sp-user"))}catch(e){}
+const setU=u=>{U=u;try{u?localStorage.setItem("sp-user",JSON.stringify(u)):localStorage.removeItem("sp-user")}catch(e){}};
+const S={tab:"find",q:{from:"Nairobi",to:"Kisumu",date:""},open:null,msg:null,err:false,trips:[],mine:null,mode:"login",loading:true};
+
+async function api(action,d={}){
+ if(API_URL.startsWith("PASTE"))throw new Error("Set API_URL in index.html to your Apps Script web app URL.");
+ const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,token:U&&U.token,...d})});
+ const j=await r.json();if(!j.ok)throw new Error(j.error);return j.data}
+const loadTrips=async()=>{S.trips=await api("trips")};
+const loadMine=async()=>{S.mine=U?await api("mine"):null};
+async function run(fn){
+ try{await fn()}catch(e){
+  if(e.message==="Please log in"){setU(null);S.tab="account";S.msg="Your session expired. Log in again."}
+  else S.msg=e.message;
+  S.err=true}
+ S.loading=false;render()}
+
+function viewFind(){
+ const {from,to,date}=S.q,today=iso(0);
+ const res=S.trips.filter(t=>{const i=t.stops.indexOf(from),j=t.stops.indexOf(to);return i>-1&&j>i&&t.seats>0&&t.date>=today&&(!date||t.date===date)}).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const rows=res.map(t=>{const i=t.stops.indexOf(from),j=t.stops.indexOf(to),mine=U&&t.driverId===U.id;
+  const seg=t.stops.map((s,k)=>`<span class="${k>=i&&k<=j?"on":""}">${esc(s)}</span>`).join("");
+  const form=S.open===t.id?`<form class="form" data-form="req" data-tid="${t.id}"><label>Seats<select name="seats">${opt([1,2,3,4].filter(n=>n<=t.seats))}</select></label>
+   <div style="display:flex;gap:8px"><button class="btn">Send request</button><button type="button" class="btn alt" data-act="close">Cancel</button></div></form>`:"";
+  return `<article class="trip"><div class="top"><span class="when">${fmtD(t.date)} at ${t.time}</span><span class="price">${kes(fare(t,i,j))} <small>per seat</small></span></div>
+  <div class="stops">${seg}</div><div class="meta"><span>${esc(t.driver)} driving a ${esc(t.car)}, ${t.seats} seat${plural(t.seats)} left</span>
+  ${mine?`<span>Your trip</span>`:`<button class="btn" data-act="open" data-id="${t.id}">${U?"Request a seat":"Log in to request"}</button>`}</div>${form}</article>`}).join("");
+ return `<form data-form="search"><div class="go"><label>From<select name="from">${opt(CITIES,from)}</select></label><div class="road"></div><label>To<select name="to">${opt(CITIES,to)}</select></label></div>
+ <div class="srch"><label>Date (optional)<input type="date" name="date" min="${today}" value="${date}"></label><button class="btn">Find rides</button></div></form>
+ ${S.loading?`<div class="empty">Loading rides…</div>`:from===to?`<div class="empty">Pick two different towns to see rides.</div>`:rows||`<div class="empty">No rides from ${from} to ${to} yet. Drivers post trips under “Offer a ride”, so check back or try another date.</div>`}`}
+
+const gate=m=>`<div class="empty">${m}<p><button class="btn" data-act="tab" data-id="account">Log in or sign up</button></p></div>`;
+function viewOffer(){
+ if(!U)return gate("Log in with a driver account to post a trip.");
+ if(U.role!=="driver")return `<div class="empty">Your account is for finding rides. Sign up with a driver account to post trips.</div>`;
+ return `<form class="trip" data-form="offer"><div class="form" style="margin:0;padding:0;border:0">
+ <label>Car (make and model)<input name="car" required></label>
+ <label>Leaving from<select name="from">${opt(CITIES,"Nairobi")}</select></label><label>Going to<select name="to">${opt(CITIES,"Kisumu")}</select></label>
+ <label>Date<input type="date" name="date" min="${iso(0)}" value="${iso(1)}" required></label><label>Departure time<input type="time" name="time" value="07:00" required></label>
+ <label>Empty seats<select name="seats">${opt([1,2,3,4,5,6],3)}</select></label>
+ <label>Price per seat (KES)<input type="number" name="price" min="100" step="50" required></label></div>
+ <p class="hint" id="hint"></p><button class="btn">Post my trip</button></form>`}
+
+function viewMine(){
+ if(!U)return gate("Log in to see your trips and requests.");
+ if(!S.mine)return `<div class="empty">Loading…</div>`;
+ const drv=S.mine.trips.map(t=>`<article class="trip"><div class="top"><span class="when">${esc(t.from)} to ${esc(t.to)}</span><span>${fmtD(t.date)} at ${t.time}, ${t.seats} seat${plural(t.seats)} open</span></div>
+  ${t.requests.length?t.requests.map(r=>`<div class="req"><span>${esc(r.name)}, ${r.seats} seat${plural(r.seats)}, ${esc(r.from)} to ${esc(r.to)}${r.status==="accepted"?`<br>Call ${esc(r.phone)}`:""}</span>
+  ${r.status==="pending"?`<span style="display:flex;gap:8px"><button class="btn" data-act="acc" data-id="${r.id}">Accept</button><button class="btn bad" data-act="dec" data-id="${r.id}">Decline</button></span>`:`<span class="tag ${r.status}">${r.status}</span>`}</div>`).join(""):`<div class="req"><span class="hint">No requests yet.</span></div>`}</article>`).join("");
+ const rid=S.mine.requests.map(r=>`<article class="trip"><div class="top"><span class="when">${esc(r.from)} to ${esc(r.to)}</span><span class="tag ${r.status}">${r.status}</span></div>
+  <div class="meta"><span>${esc(r.driver)}, ${fmtD(r.date)} at ${r.time}, ${r.seats} seat${plural(r.seats)}</span>${r.status==="accepted"?`<span>Call ${esc(r.driver)} on ${esc(r.phone)}</span>`:""}</div></article>`).join("");
+ return `${U.role==="driver"?`<h2>Trips I’m driving</h2>${drv||`<div class="empty">You haven’t posted a trip. Use “Offer a ride”.</div>`}`:""}
+ <h2>Seats I’ve requested</h2>${rid||`<div class="empty">No requests yet. Find a ride and tap “Request a seat”.</div>`}`}
+
+function viewAccount(){
+ if(U)return `<div class="trip"><div class="when">${esc(U.name)}</div><p class="hint">${U.role==="driver"?"Driver account":"Traveller account"}</p><button class="btn alt" data-act="out">Log out</button></div>`;
+ const su=S.mode==="signup";
+ return `<div class="tabs"><button role="tab" aria-selected="${!su}" data-act="mode" data-id="login">Log in</button><button role="tab" aria-selected="${su}" data-act="mode" data-id="signup">Create account</button></div>
+ <form class="trip" data-form="${su?"signup":"login"}"><div class="form" style="margin:0;padding:0;border:0">
+ ${su?`<label>Full name<input name="name" required autocomplete="name"></label><label>Phone<input name="phone" type="tel" required autocomplete="tel"></label>`:""}
+ <label>Email<input name="email" type="email" required autocomplete="email"></label>
+ <label>Password<input name="password" type="password" minlength="6" required autocomplete="${su?"new-password":"current-password"}"></label>
+ ${su?`<label>I want to<select name="role"><option value="driver">Share rides in my car</option><option value="traveller">Find rides</option></select></label>`:""}</div>
+ <p></p><button class="btn">${su?"Create account":"Log in"}</button></form>`}
+
+function render(){
+ const tabs=[["find","Find a ride"],["offer","Offer a ride"],["mine","My activity"],["account",U?U.name:"Log in"]];
+ app.innerHTML=`<div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${S.tab===k}" data-act="tab" data-id="${k}">${esc(l)}</button>`).join("")}</div>
+ ${S.msg?`<div class="msg${S.err?" err":""}" role="status">${esc(S.msg)}</div>`:""}
+ ${{find:viewFind,offer:viewOffer,mine:viewMine,account:viewAccount}[S.tab]()}`;
+ S.msg=null;S.err=false;if(S.tab==="offer")hint()}
+function hint(){const f=document.querySelector('[data-form="offer"]');if(!f)return;const a=f.from.value,b=f.to.value,h=document.getElementById("hint");
+ if(a===b){h.textContent="Choose two different towns.";return}
+ const s=suggest(a,b);h.textContent=s?`A fair cost-sharing fare for this route is about ${kes(s)} per seat.`:"Set a price that covers your share of fuel and tolls."}
+
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id;
+ run(async()=>{
+  if(a==="tab"){S.tab=id;S.open=null;if(id==="mine")await loadMine();if(id==="find")await loadTrips()}
+  else if(a==="mode")S.mode=id;
+  else if(a==="close")S.open=null;
+  else if(a==="open"){if(U)S.open=id;else{S.tab="account";S.mode="signup";S.msg="Create an account or log in to request a seat."}}
+  else if(a==="out"){setU(null);S.mine=null;S.tab="find";S.msg="You’re logged out."}
+  else if(a==="acc"||a==="dec"){await api("respond",{rid:id,accept:a==="acc"});S.msg=a==="acc"?"Accepted. The traveller’s phone number is now visible.":"Request declined.";await loadMine();await loadTrips()}
+ })});
+document.addEventListener("change",e=>{if(e.target.closest('[data-form="offer"]'))hint()});
+document.addEventListener("submit",e=>{e.preventDefault();const f=e.target,k=f.dataset.form,v=Object.fromEntries(new FormData(f));
+ run(async()=>{
+  if(k==="search"){S.q={from:v.from,to:v.to,date:v.date};S.open=null}
+  else if(k==="signup"||k==="login"){const u=await api(k,v);setU(u);S.tab=u.role==="driver"&&k==="signup"?"offer":"find";S.msg=k==="signup"?`Account created. Welcome, ${u.name}.`:`Welcome back, ${u.name}.`;await loadTrips()}
+  else if(k==="req"){await api("request",{tid:f.dataset.tid,from:S.q.from,to:S.q.to,seats:+v.seats});S.open=null;S.msg="Request sent. The driver’s reply will appear under My activity."}
+  else if(k==="offer"){if(v.from===v.to)throw new Error("Choose two different towns for your trip.");
+   await api("offer",{...v,...route(v.from,v.to)});S.tab="mine";S.msg="Trip posted. Travellers on your route can now request a seat.";await loadMine();await loadTrips()}
+ })});
+const app=document.getElementById("app");render();run(loadTrips);
+</script></body></html>
